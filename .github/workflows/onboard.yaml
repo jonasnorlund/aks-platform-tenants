@@ -1,0 +1,160 @@
+name: Onboard process
+
+run-name: "Onboard : ${{ inputs.name }}, requestor: ${{ inputs.requestor }}"
+
+on:
+  workflow_dispatch:
+    inputs: 
+      name: 
+        description: 'Name of solution, max 7 chars'
+        required: true
+        default: 'apollo'
+        type: string
+
+      groupid:   
+        description: 'Entra group objectid'
+        required: true
+        default: 'e560a3b9-df9f-4ed8-80c7-a6a517d84b91'
+        type: string
+
+      requestor: 
+        description: 'Email of requestor'
+        required: true
+        default: 'octocat@github.com'
+        type: string
+
+      # gh_repo: 
+      #   description: 'GitHub repository'
+      #   required: true
+      #   default: 'vcrs-aks-sample1'
+      #   type: string
+
+      # gh_repo_path: 
+      #   description: 'GitHub repository path to yaml files'
+      #   required: true
+      #   default: 'k8s'
+      #   type: string
+        
+
+      environment: 
+        description: 'Environment'
+        required: true
+        default: 'aks-ninja-dev-06'
+        type: choice
+        options:
+          - 'aks-ninja-dev-06'
+          - 'aks-ninja-dev-07'
+
+      storage: 
+        description: 'Enable storage for tenant'
+        required: true
+        default: false
+        type: boolean
+      
+
+permissions:
+  id-token: write
+  contents: write
+  
+env:
+  # these needs to be changed, env
+  gh-organization: jonasnorlund
+  gh-repo: aks-platform-tenants
+  gh-repo-path: verify
+  az-storage-account: stgplatform1234
+  az-storage-acount-rg: rg-ninja-dev-06
+  umi-kubelet: 7128db8a-e2f1-4c80-9286-f0dff774ef88 
+
+jobs:
+  onboard:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install yq
+      run: |
+        sudo curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+        yq --version
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+      
+    - name: Install kubelogin
+      uses: azure/use-kubelogin@v1
+      with:
+        kubelogin-version: 'v0.2.13'
+
+    - name: Set variables
+      run: |
+        if [ "${{ inputs.environment }}" == "aks-ninja-dev-06" ]; then
+          echo "CLUSTER=aks-ninja-dev-06" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=rg-ninja-dev-06" >> $GITHUB_ENV
+          echo "SUBSCRIPTION_ID=4549562a-e0ad-4f83-8adb-01730ecc7c2a" >> $GITHUB_ENV
+        elif [ "${{ inputs.environment }}" == "prod" ]; then
+          echo "CLUSTER=prod-01-se" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=rg-aks-prod" >> $GITHUB_ENV
+          echo "SUBSCRIPTION_ID=22222222-2222-2222-2222-222222222222" >> $GITHUB_ENV
+        else
+          echo "Unknown environment: ${{ inputs.environment }}"
+          exit 1
+        fi  
+
+    - name: Create manifests
+      run: |
+        chmod +x ./manifests.sh
+        ./manifests.sh ${{ inputs.name }} ${{ inputs.groupid }} ${{ env.gh-organization }}/${{ env.gh-repo }} ${{ env.gh-repo-path }} ${{ secrets.GH_AUTH }} ${{ env.CLUSTER }}
+      
+
+    - name: Login to Azure
+      uses: azure/login@v2
+      with:
+        client-id: ${{ vars.AZURE_CLIENT_ID }}
+        tenant-id: ${{ vars.AZURE_TENANT_ID }}
+        subscription-id: ${{ env.SUBSCRIPTION_ID }}
+        
+    - name: Set k8s context
+      uses: azure/aks-set-context@v4
+      with:
+        resource-group: '${{ env.RESOURCE_GROUP }}'
+        cluster-name: '${{ inputs.environment }}'
+        use-kubelogin: 'true'
+        admin: 'false'
+
+    - name: Create repository secret and remove it to avoid secrets in git
+      run: |
+        kubectl get namespace ns-${{ inputs.name }} || kubectl create namespace ns-${{ inputs.name }}
+        kubectl apply -f clusters/${{ env.CLUSTER }}/${{ inputs.name }}/repository.yaml
+        rm -f clusters/${{ env.CLUSTER }}/${{ inputs.name }}/repository.yaml
+
+    - name: Push manifests
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@noreply.github.com"
+        git add .
+
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          echo "Changes detected, committing..."
+          git commit -m "Tenant ${{ inputs.name }} commit."
+          git push origin main
+        fi
+
+
+    - name: Create storage
+      if: ${{ inputs.storage == true }}
+      run: |
+        az storage share create --name fs-${{ inputs.name }} --account-name ${{ env.az-storage-account }} --quota 10 --protocol SMB
+        chmod +x ./storage.sh
+        ./storage.sh ${{ inputs.name }} ${{ env.az-storage-account }} ${{ env.az-storage-acount-rg }} ${{ env.CLUSTER }} ${{env.umi-kubelet}}  
+
+
+    - name: AKS Role assignments for Entra Group Id (cannot be done with bicep) 
+      #continue-on-error: true
+      run: |
+        AKS_ID=$(az aks show --resource-group ${{ env.RESOURCE_GROUP }} --name ${{inputs.environment}} --query id -o tsv)
+        az role assignment create --role "Azure Kubernetes Service Cluster User Role" --assignee-object-id ${{ inputs.groupid }} --scope $AKS_ID --assignee-principal-type Group
+        az role assignment create --role "Azure Kubernetes Service RBAC Reader" --assignee-object-id ${{ inputs.groupid }} --scope $AKS_ID/namespaces/ns-${{ inputs.name }} --assignee-principal-type Group

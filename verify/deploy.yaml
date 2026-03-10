@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-hello
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: app-hello
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-hello
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-hello
+  template:
+    metadata:
+      labels:
+        app: app-hello
+    spec:
+      containers:
+      - name: app-hello
+        image: paulbouwer/hello-kubernetes:1.10
+        #image: mcr.microsoft.com/azuredocs/aks-helloworld:v1
+        env:
+          - name: MESSAGE
+            value: "Hello from Azure Ninja AKS!"
+          - name: KUBERNETES_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: KUBERNETES_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        ports:
+        - containerPort: 8080

@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: REPLACE
+  namespace: argocd
+spec:
+  destinations:
+    - name: REPLACE
+      namespace: REPLACE
+  roles:
+    - description: Admin privileges to namespace
+      groups:
+        - REPLACE
+      name: admin
+      policies:
+        - p, proj:p-IDSTRING:admin, applications, create, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, applications, delete, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, applications, get, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, applications, override, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, applications, sync, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, applications, update, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, applications, action/*, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, logs, get, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, exec, create, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, projects, get, p-IDSTRING, allow
+        - p, proj:p-IDSTRING:admin, repositories, get, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, repositories, create, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, repositories, update, p-IDSTRING/*, allow
+        - p, proj:p-IDSTRING:admin, repositories, delete, p-IDSTRING/*, allow
+  sourceNamespaces:
+    - ns-REPLACE
+  sourceRepos:
+    - 'https://github.com/jonasnorlund/*'
+  
+  # Deny all cluster-scoped resources from being created, except for Namespace
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+    
+  # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+  namespaceResourceBlacklist:
+  - group: ''
+    kind: ResourceQuota
+  - group: ''
+    kind: LimitRange
+  - group: ''
+    kind: NetworkPolicy

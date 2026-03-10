@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: REPLACE
+  namespace: REPLACE
+  labels:
+    type: application
+spec:
+  project: REPLACE
+  source:
+    repoURL: REPLACE
+    targetRevision: HEAD
+    path: REPLACE
+  destination:
+    name: REPLACE
+    namespace: REPLACE
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true

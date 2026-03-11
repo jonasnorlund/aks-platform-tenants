@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: p-apollo
+  namespace: argocd
+spec:
+  destinations:
+    - name: aks-ninja-dev-06
+      namespace: ns-apollo
+  roles:
+    - description: Admin privileges to namespace
+      groups:
+        - e560a3b9-df9f-4ed8-80c7-a6a517d84b91
+      name: admin
+      policies:
+        - p, proj:p-apollo:admin, applications, create, p-apollo/*, allow
+        - p, proj:p-apollo:admin, applications, delete, p-apollo/*, allow
+        - p, proj:p-apollo:admin, applications, get, p-apollo/*, allow
+        - p, proj:p-apollo:admin, applications, override, p-apollo/*, allow
+        - p, proj:p-apollo:admin, applications, sync, p-apollo/*, allow
+        - p, proj:p-apollo:admin, applications, update, p-apollo/*, allow
+        - p, proj:p-apollo:admin, applications, action/*, p-apollo/*, allow
+        - p, proj:p-apollo:admin, logs, get, p-apollo/*, allow
+        - p, proj:p-apollo:admin, exec, create, p-apollo/*, allow
+        - p, proj:p-apollo:admin, projects, get, p-apollo, allow
+        - p, proj:p-apollo:admin, repositories, get, p-apollo/*, allow
+        - p, proj:p-apollo:admin, repositories, create, p-apollo/*, allow
+        - p, proj:p-apollo:admin, repositories, update, p-apollo/*, allow
+        - p, proj:p-apollo:admin, repositories, delete, p-apollo/*, allow
+  sourceNamespaces:
+    - ns-apollo
+  sourceRepos:
+    - 'https://github.com/jonasnorlund/aks-platform-tenants'
+  # Deny all cluster-scoped resources from being created, except for Namespace
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+    - group: ''
+      kind: NetworkPolicy

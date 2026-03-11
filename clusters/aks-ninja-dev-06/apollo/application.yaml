@@ -14,6 +14,4 @@ spec:
   destination:
     name: aks-ninja-dev-06
     namespace: ns-apollo
-  syncPolicy:
-    syncOptions:
-      - CreateNamespace=true
+

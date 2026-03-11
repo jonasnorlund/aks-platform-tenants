@@ -14,7 +14,7 @@ cp templates/argocd-application-template.yaml "$destination/application.yaml"
 cp templates/argocd-project-template.yaml "$destination/project.yaml"
 cp templates/argocd-repository-template.yaml "$destination/repository.yaml"
 cp templates/networkpolicy-template.yaml "$destination/networkpolicy.yaml"
-
+cp templates/namespace-template.yaml "$destination/namespace.yaml"
 
 
 # Application

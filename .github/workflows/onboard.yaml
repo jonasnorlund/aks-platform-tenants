@@ -123,10 +123,14 @@ jobs:
         use-kubelogin: 'true'
         admin: 'false'
 
+    # - name: Create repository secret and remove it to avoid secrets in git
+    #   run: |
+    #     kubectl get namespace ns-${{ inputs.name }} || kubectl create namespace ns-${{ inputs.name }}
+    #     kubectl apply -f clusters/${{ env.CLUSTER }}/${{ inputs.name }}/repository.yaml
+    #     rm -f clusters/${{ env.CLUSTER }}/${{ inputs.name }}/repository.yaml
+
     - name: Create repository secret and remove it to avoid secrets in git
       run: |
-        kubectl get namespace ns-${{ inputs.name }} || kubectl create namespace ns-${{ inputs.name }}
-        kubectl apply -f clusters/${{ env.CLUSTER }}/${{ inputs.name }}/repository.yaml
         rm -f clusters/${{ env.CLUSTER }}/${{ inputs.name }}/repository.yaml
 
     - name: Push manifests

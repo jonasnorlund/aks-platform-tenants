@@ -16,8 +16,9 @@ cp templates/argocd-repository-template.yaml "$destination/repository.yaml"
 cp templates/networkpolicy-template.yaml "$destination/networkpolicy.yaml"
 
 
+
 # Application
-yq e -i '.metadata.name = "'$1'"' $destination/application.yaml
+yq e -i '.metadata.name = "'$1'-'$6'"' $destination/application.yaml
 yq e -i '.metadata.namespace = "ns-'$1'"' $destination/application.yaml
 yq e -i '.spec.project = "p-'$1'"' $destination/application.yaml
 yq e -i '.spec.source.repoURL = "https://github.com/'$3'"' $destination/application.yaml
@@ -43,3 +44,6 @@ yq eval '(.spec.roles[].policies[]) |= sub("IDSTRING", "'$1'")' -i $destination/
 # NetworkPolicy
 yq e -i '.metadata.namespace = "ns-'$1'"' $destination/networkpolicy.yaml
 yq e -i '.metadata.name = "np-'$1'"' $destination/networkpolicy.yaml
+
+# Namespace
+yq e -i '.metadata.name = "ns-'$1'"' $destination/namespace.yaml

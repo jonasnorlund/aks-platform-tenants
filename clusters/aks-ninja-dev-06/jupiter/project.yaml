@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: p-jupiter
+  namespace: argocd
+spec:
+  destinations:
+    - name: aks-ninja-dev-06
+      namespace: ns-jupiter
+  roles:
+    - description: Admin privileges to namespace
+      groups:
+        - e560a3b9-df9f-4ed8-80c7-a6a517d84b91
+      name: admin
+      policies:
+        - p, proj:p-jupiter:admin, applications, create, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, applications, delete, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, applications, get, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, applications, override, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, applications, sync, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, applications, update, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, applications, action/*, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, logs, get, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, exec, create, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, projects, get, p-jupiter, allow
+        - p, proj:p-jupiter:admin, repositories, get, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, repositories, create, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, repositories, update, p-jupiter/*, allow
+        - p, proj:p-jupiter:admin, repositories, delete, p-jupiter/*, allow
+  sourceNamespaces:
+    - ns-jupiter
+  sourceRepos:
+    - 'https://github.com/jonasnorlund/aks-platform-tenants'
+  # Deny all cluster-scoped resources from being created, except for Namespace
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+    - group: ''
+      kind: NetworkPolicy

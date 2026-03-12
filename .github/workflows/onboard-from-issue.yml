@@ -14,27 +14,12 @@ jobs:
     if: |
       github.event.issue.state == 'open' &&
       contains(join(github.event.issue.labels.*.name, ','), 'onboarding-request') &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'onboarding-pr-created') &&
-      contains(fromJson('["MEMBER","OWNER","COLLABORATOR"]'), github.event.issue.author_association)
+      !contains(join(github.event.issue.labels.*.name, ','), 'onboarding-pr-created')
     runs-on: ubuntu-latest
-
-    env:
-      GH_ORGANIZATION: jonasnorlund
-      GH_REPO: aks-platform-tenants
-      GH_REPO_PATH: verify
-      AZ_STORAGE_ACCOUNT: stgplatform1234
-      AZ_STORAGE_ACCOUNT_RG: rg-ninja-dev-06
-      UMI_KUBELET: 7128db8a-e2f1-4c80-9286-f0dff774ef88
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install yq
-        run: |
-          sudo curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
-          yq --version
 
       - name: Parse issue form fields
         id: parse
@@ -96,47 +81,36 @@ jobs:
               ;;
           esac
 
-      - name: Generate manifests from issue values
+      - name: Create request yaml
+        id: create_request
         run: |
-          chmod +x ./manifests.sh
-          ./manifests.sh \
-            '${{ steps.parse.outputs.name }}' \
-            '${{ steps.parse.outputs.groupid }}' \
-            '${{ env.GH_ORGANIZATION }}/${{ env.GH_REPO }}' \
-            '${{ env.GH_REPO_PATH }}' \
-            '${{ secrets.GH_AUTH }}' \
-            '${{ steps.parse.outputs.environment }}'
+          mkdir -p requests
+          REQUEST_FILE="requests/onboard-issue-${{ github.event.issue.number }}-${{ steps.parse.outputs.name }}.yaml"
 
-          # Never commit repository credentials.
-          rm -f 'clusters/${{ steps.parse.outputs.environment }}/${{ steps.parse.outputs.name }}/repository.yaml'
+          cat > "$REQUEST_FILE" <<EOF
+          name: ${{ steps.parse.outputs.name }}
+          groupid: ${{ steps.parse.outputs.groupid }}
+          requestor: ${{ steps.parse.outputs.requestor }}
+          environment: ${{ steps.parse.outputs.environment }}
+          storage: ${{ steps.parse.outputs.storage }}
+          issue: ${{ github.event.issue.number }}
+          created_at: ${{ github.event.issue.created_at }}
+          EOF
 
-      - name: Generate storage manifests when requested
-        if: steps.parse.outputs.storage == 'true'
-        run: |
-          DESTINATION='clusters/${{ steps.parse.outputs.environment }}/${{ steps.parse.outputs.name }}'
-          cp templates/persistent-volume-template.yaml "$DESTINATION/persistent-volume.yaml"
-          cp templates/persistent-volume-claim-template.yaml "$DESTINATION/persistent-volume-claim.yaml"
-
-          yq e -i '.metadata.name = "pv-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume.yaml"
-          yq e -i '.spec.csi.volumeHandle = "pv-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume.yaml"
-          yq e -i '.spec.csi.volumeAttributes.storageAccount = "${{ env.AZ_STORAGE_ACCOUNT }}.file.core.windows.net"' "$DESTINATION/persistent-volume.yaml"
-          yq e -i '.spec.csi.volumeAttributes.resourceGroup = "${{ env.AZ_STORAGE_ACCOUNT_RG }}"' "$DESTINATION/persistent-volume.yaml"
-          yq e -i '.spec.csi.volumeAttributes.shareName = "fs-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume.yaml"
-          yq e -i '.spec.csi.volumeAttributes.clientID = "${{ env.UMI_KUBELET }}"' "$DESTINATION/persistent-volume.yaml"
-
-          yq e -i '.metadata.name = "pvc-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume-claim.yaml"
-          yq e -i '.metadata.namespace = "ns-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume-claim.yaml"
-          yq e -i '.spec.volumeName = "pv-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume-claim.yaml"
+          echo "request_file=$REQUEST_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request with generated changes
         id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
-          title: "Onboard tenant ${{ steps.parse.outputs.name }} in ${{ steps.parse.outputs.environment }}"
+          title: "Onboard request ${{ steps.parse.outputs.name }} in ${{ steps.parse.outputs.environment }}"
           branch: "onboarding/${{ steps.parse.outputs.name }}-issue-${{ github.event.issue.number }}"
-          commit-message: "Onboard tenant ${{ steps.parse.outputs.name }}"
+          commit-message: "Create onboard request for ${{ steps.parse.outputs.name }}"
           body: |
-            This PR was generated from issue #${{ github.event.issue.number }}.
+            This PR adds a request file that triggers onboarding after merge via onboard.yaml.
+
+            Source issue: #${{ github.event.issue.number }}
+            Request file: `${{ steps.create_request.outputs.request_file }}`
 
             Input summary:
             - name: `${{ steps.parse.outputs.name }}`
@@ -144,10 +118,9 @@ jobs:
             - requestor: `${{ steps.parse.outputs.requestor }}`
             - environment: `${{ steps.parse.outputs.environment }}`
             - storage: `${{ steps.parse.outputs.storage }}`
-
-            Closes #${{ github.event.issue.number }}
           labels: |
             onboarding
+            onboarding-request
 
       - name: Mark issue and comment PR link
         if: steps.cpr.outputs.pull-request-number != ''

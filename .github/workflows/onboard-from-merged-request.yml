@@ -1,0 +1,78 @@
+name: Onboard from merged request
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - requests/*.yml
+      - requests/*.yaml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-onboard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Install yq
+        run: |
+          sudo curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+          yq --version
+
+      - name: Dispatch onboard workflow for request files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t request_files < <(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA" | grep -E '^requests/.*\.ya?ml$' || true)
+
+          if [ ${#request_files[@]} -eq 0 ]; then
+            echo "No request files changed."
+            exit 0
+          fi
+
+          for file in "${request_files[@]}"; do
+            [ -f "$file" ] || continue
+
+            NAME=$(yq -r '.name // ""' "$file")
+            GROUPID=$(yq -r '.groupid // ""' "$file")
+            REQUESTOR=$(yq -r '.requestor // ""' "$file")
+            ENVIRONMENT=$(yq -r '.environment // ""' "$file")
+            STORAGE=$(yq -r '.storage // false' "$file")
+
+            if [ -z "$NAME" ] || [ -z "$GROUPID" ] || [ -z "$REQUESTOR" ] || [ -z "$ENVIRONMENT" ]; then
+              echo "Skipping invalid request file: $file"
+              continue
+            fi
+
+            if [ "$STORAGE" = "true" ]; then
+              STORAGE_JSON=true
+            else
+              STORAGE_JSON=false
+            fi
+
+            echo "Dispatching onboard.yaml for tenant '$NAME' from $file"
+
+            gh api \
+              --method POST \
+              "repos/$REPO/actions/workflows/onboard.yaml/dispatches" \
+              -f ref='main' \
+              -f inputs[name]="$NAME" \
+              -f inputs[groupid]="$GROUPID" \
+              -f inputs[requestor]="$REQUESTOR" \
+              -f inputs[environment]="$ENVIRONMENT" \
+              -F inputs[storage]="$STORAGE_JSON"
+          done

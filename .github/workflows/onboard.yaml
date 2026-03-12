@@ -50,6 +50,28 @@ on:
         required: true
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      name:
+        description: 'Name of solution, max 7 chars'
+        required: true
+        type: string
+      groupid:
+        description: 'Entra group objectid'
+        required: true
+        type: string
+      requestor:
+        description: 'Email of requestor'
+        required: true
+        type: string
+      environment:
+        description: 'Environment'
+        required: true
+        type: string
+      storage:
+        description: 'Enable storage for tenant'
+        required: true
+        type: boolean
       
 
 permissions:
@@ -92,6 +114,10 @@ jobs:
         if [ "${{ inputs.environment }}" == "aks-ninja-dev-06" ]; then
           echo "CLUSTER=aks-ninja-dev-06" >> $GITHUB_ENV
           echo "RESOURCE_GROUP=rg-ninja-dev-06" >> $GITHUB_ENV
+          echo "SUBSCRIPTION_ID=4549562a-e0ad-4f83-8adb-01730ecc7c2a" >> $GITHUB_ENV
+        elif [ "${{ inputs.environment }}" == "aks-ninja-dev-07" ]; then
+          echo "CLUSTER=aks-ninja-dev-07" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=rg-ninja-dev-07" >> $GITHUB_ENV
           echo "SUBSCRIPTION_ID=4549562a-e0ad-4f83-8adb-01730ecc7c2a" >> $GITHUB_ENV
         elif [ "${{ inputs.environment }}" == "prod" ]; then
           echo "CLUSTER=prod-01-se" >> $GITHUB_ENV

@@ -1,0 +1,173 @@
+name: Onboard from issue
+
+on:
+  issues:
+    types: [opened, edited, reopened, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  generate-onboarding-pr:
+    if: |
+      github.event.issue.state == 'open' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'onboarding-request') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'onboarding-pr-created') &&
+      contains(fromJson('["MEMBER","OWNER","COLLABORATOR"]'), github.event.issue.author_association)
+    runs-on: ubuntu-latest
+
+    env:
+      GH_ORGANIZATION: jonasnorlund
+      GH_REPO: aks-platform-tenants
+      GH_REPO_PATH: verify
+      AZ_STORAGE_ACCOUNT: stgplatform1234
+      AZ_STORAGE_ACCOUNT_RG: rg-ninja-dev-06
+      UMI_KUBELET: 7128db8a-e2f1-4c80-9286-f0dff774ef88
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+          yq --version
+
+      - name: Parse issue form fields
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || '';
+
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            function readField(label) {
+              const re = new RegExp(`###\\s*${escapeRegExp(label)}\\s*\\n([\\s\\S]*?)(?=\\n###\\s|$)`, 'i');
+              const match = body.match(re);
+              if (!match) {
+                return '';
+              }
+
+              return match[1]
+                .replace(/\r/g, '')
+                .trim();
+            }
+
+            const name = readField('Name');
+            const groupid = readField('Entra Group Object ID');
+            const requestor = readField('Requestor Email');
+            const environment = readField('Environment');
+            const storageRaw = readField('Enable Storage').toLowerCase();
+
+            const storage = storageRaw.includes('true') || storageRaw.includes('yes') ? 'true' : 'false';
+
+            if (!name || !groupid || !requestor || !environment) {
+              core.setFailed('Missing required onboarding fields in issue body.');
+              return;
+            }
+
+            core.setOutput('name', name);
+            core.setOutput('groupid', groupid);
+            core.setOutput('requestor', requestor);
+            core.setOutput('environment', environment);
+            core.setOutput('storage', storage);
+
+      - name: Validate parsed values
+        run: |
+          NAME='${{ steps.parse.outputs.name }}'
+          ENVIRONMENT='${{ steps.parse.outputs.environment }}'
+
+          if [[ ! "$NAME" =~ ^[a-z0-9-]{1,7}$ ]]; then
+            echo "Invalid tenant name: '$NAME'. Use lowercase letters, numbers, hyphen, max 7 chars."
+            exit 1
+          fi
+
+          case "$ENVIRONMENT" in
+            aks-ninja-dev-06|aks-ninja-dev-07) ;;
+            *)
+              echo "Invalid environment: '$ENVIRONMENT'"
+              exit 1
+              ;;
+          esac
+
+      - name: Generate manifests from issue values
+        run: |
+          chmod +x ./manifests.sh
+          ./manifests.sh \
+            '${{ steps.parse.outputs.name }}' \
+            '${{ steps.parse.outputs.groupid }}' \
+            '${{ env.GH_ORGANIZATION }}/${{ env.GH_REPO }}' \
+            '${{ env.GH_REPO_PATH }}' \
+            '${{ secrets.GH_AUTH }}' \
+            '${{ steps.parse.outputs.environment }}'
+
+          # Never commit repository credentials.
+          rm -f 'clusters/${{ steps.parse.outputs.environment }}/${{ steps.parse.outputs.name }}/repository.yaml'
+
+      - name: Generate storage manifests when requested
+        if: steps.parse.outputs.storage == 'true'
+        run: |
+          DESTINATION='clusters/${{ steps.parse.outputs.environment }}/${{ steps.parse.outputs.name }}'
+          cp templates/persistent-volume-template.yaml "$DESTINATION/persistent-volume.yaml"
+          cp templates/persistent-volume-claim-template.yaml "$DESTINATION/persistent-volume-claim.yaml"
+
+          yq e -i '.metadata.name = "pv-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume.yaml"
+          yq e -i '.spec.csi.volumeHandle = "pv-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume.yaml"
+          yq e -i '.spec.csi.volumeAttributes.storageAccount = "${{ env.AZ_STORAGE_ACCOUNT }}.file.core.windows.net"' "$DESTINATION/persistent-volume.yaml"
+          yq e -i '.spec.csi.volumeAttributes.resourceGroup = "${{ env.AZ_STORAGE_ACCOUNT_RG }}"' "$DESTINATION/persistent-volume.yaml"
+          yq e -i '.spec.csi.volumeAttributes.shareName = "fs-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume.yaml"
+          yq e -i '.spec.csi.volumeAttributes.clientID = "${{ env.UMI_KUBELET }}"' "$DESTINATION/persistent-volume.yaml"
+
+          yq e -i '.metadata.name = "pvc-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume-claim.yaml"
+          yq e -i '.metadata.namespace = "ns-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume-claim.yaml"
+          yq e -i '.spec.volumeName = "pv-${{ steps.parse.outputs.name }}"' "$DESTINATION/persistent-volume-claim.yaml"
+
+      - name: Create pull request with generated changes
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "Onboard tenant ${{ steps.parse.outputs.name }} in ${{ steps.parse.outputs.environment }}"
+          branch: "onboarding/${{ steps.parse.outputs.name }}-issue-${{ github.event.issue.number }}"
+          commit-message: "Onboard tenant ${{ steps.parse.outputs.name }}"
+          body: |
+            This PR was generated from issue #${{ github.event.issue.number }}.
+
+            Input summary:
+            - name: `${{ steps.parse.outputs.name }}`
+            - groupid: `${{ steps.parse.outputs.groupid }}`
+            - requestor: `${{ steps.parse.outputs.requestor }}`
+            - environment: `${{ steps.parse.outputs.environment }}`
+            - storage: `${{ steps.parse.outputs.storage }}`
+
+            Closes #${{ github.event.issue.number }}
+          labels: |
+            onboarding
+
+      - name: Mark issue and comment PR link
+        if: steps.cpr.outputs.pull-request-number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.payload.issue.number;
+            const repo = context.repo;
+            const prNumber = Number('${{ steps.cpr.outputs.pull-request-number }}');
+
+            await github.rest.issues.addLabels({
+              owner: repo.owner,
+              repo: repo.repo,
+              issue_number: issueNumber,
+              labels: ['onboarding-pr-created']
+            });
+
+            await github.rest.issues.createComment({
+              owner: repo.owner,
+              repo: repo.repo,
+              issue_number: issueNumber,
+              body: `Created PR #${prNumber} from this onboarding request.`
+            });

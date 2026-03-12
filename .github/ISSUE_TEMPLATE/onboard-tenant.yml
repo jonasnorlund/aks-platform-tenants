@@ -1,0 +1,59 @@
+name: Tenant Onboarding Request
+description: Request creation of onboarding manifests via pull request
+labels:
+  - onboarding-request
+title: "Onboard tenant: [name]"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in the fields below. A workflow will generate a pull request with the tenant manifests.
+
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      description: Name of solution, max 7 chars
+      placeholder: apollo
+    validations:
+      required: true
+
+  - type: input
+    id: groupid
+    attributes:
+      label: Entra Group Object ID
+      description: Microsoft Entra group object id
+      placeholder: e560a3b9-df9f-4ed8-80c7-a6a517d84b91
+    validations:
+      required: true
+
+  - type: input
+    id: requestor
+    attributes:
+      label: Requestor Email
+      description: Email of requestor
+      placeholder: octocat@github.com
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - aks-ninja-dev-06
+        - aks-ninja-dev-07
+    validations:
+      required: true
+
+  - type: dropdown
+    id: storage
+    attributes:
+      label: Enable Storage
+      description: Generate persistent volume and claim manifests
+      options:
+        - "false"
+        - "true"
+      default: 0
+    validations:
+      required: true

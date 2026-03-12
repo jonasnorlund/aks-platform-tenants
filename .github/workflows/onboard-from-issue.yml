@@ -12,9 +12,7 @@ permissions:
 jobs:
   generate-onboarding-pr:
     if: |
-      github.event.issue.state == 'open' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'onboarding-request') &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'onboarding-pr-created')
+      github.event.issue.state == 'open' 
     runs-on: ubuntu-latest
 
     steps:

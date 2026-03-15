@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: p-olive
+  namespace: argocd
+spec:
+  destinations:
+    - name: aks-ninja-dev-06
+      namespace: ns-olive
+  roles:
+    - description: Admin privileges to namespace
+      groups:
+        - e560a3b9-df9f-4ed8-80c7-a6a517d84b91
+      name: admin
+      policies:
+        - p, proj:p-olive:admin, applications, create, p-olive/*, allow
+        - p, proj:p-olive:admin, applications, delete, p-olive/*, allow
+        - p, proj:p-olive:admin, applications, get, p-olive/*, allow
+        - p, proj:p-olive:admin, applications, override, p-olive/*, allow
+        - p, proj:p-olive:admin, applications, sync, p-olive/*, allow
+        - p, proj:p-olive:admin, applications, update, p-olive/*, allow
+        - p, proj:p-olive:admin, applications, action/*, p-olive/*, allow
+        - p, proj:p-olive:admin, logs, get, p-olive/*, allow
+        - p, proj:p-olive:admin, exec, create, p-olive/*, allow
+        - p, proj:p-olive:admin, projects, get, p-olive, allow
+        - p, proj:p-olive:admin, repositories, get, p-olive/*, allow
+        - p, proj:p-olive:admin, repositories, create, p-olive/*, allow
+        - p, proj:p-olive:admin, repositories, update, p-olive/*, allow
+        - p, proj:p-olive:admin, repositories, delete, p-olive/*, allow
+  sourceNamespaces:
+    - ns-olive
+  sourceRepos:
+    - 'https://github.com/jonasnorlund/aks-platform-tenants'
+  # Deny all cluster-scoped resources from being created, except for Namespace
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+    - group: ''
+      kind: NetworkPolicy

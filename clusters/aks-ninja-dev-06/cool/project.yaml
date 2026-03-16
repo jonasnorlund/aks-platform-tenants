@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: p-cool
+  namespace: argocd
+spec:
+  destinations:
+    - name: aks-ninja-dev-06
+      namespace: ns-cool
+  roles:
+    - description: Admin privileges to namespace
+      groups:
+        - e560a3b9-df9f-4ed8-80c7-a6a517d84b91
+      name: admin
+      policies:
+        - p, proj:p-cool:admin, applications, create, p-cool/*, allow
+        - p, proj:p-cool:admin, applications, delete, p-cool/*, allow
+        - p, proj:p-cool:admin, applications, get, p-cool/*, allow
+        - p, proj:p-cool:admin, applications, override, p-cool/*, allow
+        - p, proj:p-cool:admin, applications, sync, p-cool/*, allow
+        - p, proj:p-cool:admin, applications, update, p-cool/*, allow
+        - p, proj:p-cool:admin, applications, action/*, p-cool/*, allow
+        - p, proj:p-cool:admin, logs, get, p-cool/*, allow
+        - p, proj:p-cool:admin, exec, create, p-cool/*, allow
+        - p, proj:p-cool:admin, projects, get, p-cool, allow
+        - p, proj:p-cool:admin, repositories, get, p-cool/*, allow
+        - p, proj:p-cool:admin, repositories, create, p-cool/*, allow
+        - p, proj:p-cool:admin, repositories, update, p-cool/*, allow
+        - p, proj:p-cool:admin, repositories, delete, p-cool/*, allow
+  sourceNamespaces:
+    - ns-cool
+  sourceRepos:
+    - 'https://github.com/jonasnorlund/aks-platform-tenants'
+  # Deny all cluster-scoped resources from being created, except for Namespace
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+    - group: ''
+      kind: NetworkPolicy

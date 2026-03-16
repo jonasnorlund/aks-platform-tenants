@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: p-awser
+  namespace: argocd
+spec:
+  destinations:
+    - name: aks-ninja-dev-06
+      namespace: ns-awser
+  roles:
+    - description: Admin privileges to namespace
+      groups:
+        - e560a3b9-df9f-4ed8-80c7-a6a517d84b91
+      name: admin
+      policies:
+        - p, proj:p-awser:admin, applications, create, p-awser/*, allow
+        - p, proj:p-awser:admin, applications, delete, p-awser/*, allow
+        - p, proj:p-awser:admin, applications, get, p-awser/*, allow
+        - p, proj:p-awser:admin, applications, override, p-awser/*, allow
+        - p, proj:p-awser:admin, applications, sync, p-awser/*, allow
+        - p, proj:p-awser:admin, applications, update, p-awser/*, allow
+        - p, proj:p-awser:admin, applications, action/*, p-awser/*, allow
+        - p, proj:p-awser:admin, logs, get, p-awser/*, allow
+        - p, proj:p-awser:admin, exec, create, p-awser/*, allow
+        - p, proj:p-awser:admin, projects, get, p-awser, allow
+        - p, proj:p-awser:admin, repositories, get, p-awser/*, allow
+        - p, proj:p-awser:admin, repositories, create, p-awser/*, allow
+        - p, proj:p-awser:admin, repositories, update, p-awser/*, allow
+        - p, proj:p-awser:admin, repositories, delete, p-awser/*, allow
+  sourceNamespaces:
+    - ns-awser
+  sourceRepos:
+    - 'https://github.com/jonasnorlund/aks-platform-tenants'
+  # Deny all cluster-scoped resources from being created, except for Namespace
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+    - group: ''
+      kind: NetworkPolicy

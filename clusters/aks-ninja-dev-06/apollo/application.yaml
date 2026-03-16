@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apollo-aks-ninja-dev-06
+  namespace: ns-apollo
+  labels:
+    type: application
+spec:
+  project: p-apollo
+  source:
+    repoURL: https://github.com/jonasnorlund/aks-platform-tenants
+    targetRevision: HEAD
+    path: verify
+  destination:
+    name: aks-ninja-dev-06
+    namespace: ns-apollo
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

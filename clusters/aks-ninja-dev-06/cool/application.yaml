@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cool-aks-ninja-dev-06
+  namespace: ns-cool
+  labels:
+    type: application
+spec:
+  project: p-cool
+  source:
+    repoURL: https://github.com/jonasnorlund/aks-platform-tenants
+    targetRevision: HEAD
+    path: verify
+  destination:
+    name: aks-ninja-dev-06
+    namespace: ns-cool
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

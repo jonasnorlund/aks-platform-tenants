@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/provisioned-by: file.csi.azure.com
+  name: pv-awser
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: azurefile-csi
+  mountOptions:
+    - dir_mode=0777
+    - file_mode=0777
+    - uid=0
+    - gid=0
+    - mfsymlinks
+    - cache=strict
+    - nosharesock
+    - actimeo=30
+    - nobrl
+  csi:
+    driver: file.csi.azure.com
+    volumeHandle: pv-awser
+    volumeAttributes:
+      shareName: fs-awser
+      storageAccount: stgplatform1234.file.core.windows.net
+      resourceGroup: rg-ninja-dev-06
+      mountWithManagedIdentity: "true"
+      clientID: 7128db8a-e2f1-4c80-9286-f0dff774ef88

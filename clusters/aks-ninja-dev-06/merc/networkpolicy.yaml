@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-merc
+  namespace: ns-merc
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller (typically in ingress-nginx or similar namespace)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: traefik
+    # Allow traffic from within the same namespace
+    - from:
+        - podSelector: {}
+  egress:
+    # Allow DNS queries to kube-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow traffic within the same namespace
+    - to:
+        - podSelector: {}
+    # Allow outbound traffic only to 10.0.0.0/24
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24

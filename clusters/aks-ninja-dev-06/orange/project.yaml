@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: p-orange
+  namespace: argocd
+spec:
+  destinations:
+    - name: aks-ninja-dev-06
+      namespace: ns-orange
+  roles:
+    - description: Admin privileges to namespace
+      groups:
+        - e560a3b9-df9f-4ed8-80c7-a6a517d84b91
+      name: admin
+      policies:
+        - p, proj:p-orange:admin, applications, create, p-orange/*, allow
+        - p, proj:p-orange:admin, applications, delete, p-orange/*, allow
+        - p, proj:p-orange:admin, applications, get, p-orange/*, allow
+        - p, proj:p-orange:admin, applications, override, p-orange/*, allow
+        - p, proj:p-orange:admin, applications, sync, p-orange/*, allow
+        - p, proj:p-orange:admin, applications, update, p-orange/*, allow
+        - p, proj:p-orange:admin, applications, action/*, p-orange/*, allow
+        - p, proj:p-orange:admin, logs, get, p-orange/*, allow
+        - p, proj:p-orange:admin, exec, create, p-orange/*, allow
+        - p, proj:p-orange:admin, projects, get, p-orange, allow
+        - p, proj:p-orange:admin, repositories, get, p-orange/*, allow
+        - p, proj:p-orange:admin, repositories, create, p-orange/*, allow
+        - p, proj:p-orange:admin, repositories, update, p-orange/*, allow
+        - p, proj:p-orange:admin, repositories, delete, p-orange/*, allow
+  sourceNamespaces:
+    - ns-orange
+  sourceRepos:
+    - 'https://github.com/jonasnorlund/aks-platform-tenants'
+  # Deny all cluster-scoped resources from being created, except for Namespace
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+    - group: ''
+      kind: NetworkPolicy

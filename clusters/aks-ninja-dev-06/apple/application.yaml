@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apple-aks-ninja-dev-06
+  namespace: ns-apple
+  labels:
+    type: application
+spec:
+  project: p-apple
+  source:
+    repoURL: https://github.com/jonasnorlund/aks-platform-tenants
+    targetRevision: HEAD
+    path: verify
+  destination:
+    name: aks-ninja-dev-06
+    namespace: ns-apple
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

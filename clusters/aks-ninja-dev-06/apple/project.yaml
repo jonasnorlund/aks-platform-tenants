@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: p-apple
+  namespace: argocd
+spec:
+  destinations:
+    - name: aks-ninja-dev-06
+      namespace: ns-apple
+  roles:
+    - description: Admin privileges to namespace
+      groups:
+        - e560a3b9-df9f-4ed8-80c7-a6a517d84b91
+      name: admin
+      policies:
+        - p, proj:p-apple:admin, applications, create, p-apple/*, allow
+        - p, proj:p-apple:admin, applications, delete, p-apple/*, allow
+        - p, proj:p-apple:admin, applications, get, p-apple/*, allow
+        - p, proj:p-apple:admin, applications, override, p-apple/*, allow
+        - p, proj:p-apple:admin, applications, sync, p-apple/*, allow
+        - p, proj:p-apple:admin, applications, update, p-apple/*, allow
+        - p, proj:p-apple:admin, applications, action/*, p-apple/*, allow
+        - p, proj:p-apple:admin, logs, get, p-apple/*, allow
+        - p, proj:p-apple:admin, exec, create, p-apple/*, allow
+        - p, proj:p-apple:admin, projects, get, p-apple, allow
+        - p, proj:p-apple:admin, repositories, get, p-apple/*, allow
+        - p, proj:p-apple:admin, repositories, create, p-apple/*, allow
+        - p, proj:p-apple:admin, repositories, update, p-apple/*, allow
+        - p, proj:p-apple:admin, repositories, delete, p-apple/*, allow
+  sourceNamespaces:
+    - ns-apple
+  sourceRepos:
+    - 'https://github.com/jonasnorlund/aks-platform-tenants'
+  # Deny all cluster-scoped resources from being created, except for Namespace
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+    - group: ''
+      kind: NetworkPolicy

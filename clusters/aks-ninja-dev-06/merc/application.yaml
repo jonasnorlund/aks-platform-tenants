@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: merc-aks-ninja-dev-06
+  namespace: ns-merc
+  labels:
+    type: application
+spec:
+  project: p-merc
+  source:
+    repoURL: https://github.com/jonasnorlund/aks-platform-tenants
+    targetRevision: HEAD
+    path: verify
+  destination:
+    name: aks-ninja-dev-06
+    namespace: ns-merc
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

@@ -27,7 +27,6 @@ spec:
       containers:
       - name: app-hello
         image: paulbouwer/hello-kubernetes:1.10
-        #image: mcr.microsoft.com/azuredocs/aks-helloworld:v1
         env:
           - name: MESSAGE
             value: "Hello from Azure Ninja AKS!"

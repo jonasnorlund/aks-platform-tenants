@@ -177,7 +177,7 @@ jobs:
     - name: Create storage
       if: ${{ inputs.storage == true }}
       run: |
-        az storage share-rm create --name fs-${{ inputs.name }} --account-name ${{ env.az-storage-account }} -g ${{ env.az-az-storage-acount-rg }}  --quota 10 --enabled-protocols SMB
+        az storage share-rm create --name fs-${{ inputs.name }} --storage-account ${{ env.az-storage-account }} -g ${{ env.az-az-storage-acount-rg }}  --quota 10 --enabled-protocols SMB
         chmod +x ./storage.sh
         ./storage.sh ${{ inputs.name }} ${{ env.az-storage-account }} ${{ env.az-storage-acount-rg }} ${{ env.CLUSTER }} ${{env.umi-kubelet}}  
 
